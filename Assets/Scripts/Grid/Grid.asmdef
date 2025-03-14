@@ -1,0 +1,19 @@
+{
+    "name": "Grid",
+    "rootNamespace": "",
+    "references": [
+        "GUID:71c086335aea51545be3ff346b5ddc04",
+        "GUID:75469ad4d38634e559750d17036d5f7c",
+        "GUID:20fd8cb468c02f14f88175985856c5d4",
+        "GUID:701e6c7a14222f64990bbe15db50a537"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
