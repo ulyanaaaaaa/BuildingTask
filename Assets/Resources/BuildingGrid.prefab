@@ -120,5 +120,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   GridSize: {x: 15, y: 15}
-  buildingPrefab: {fileID: 0}
-  buttonsService: {fileID: 0}
+  buildingPrefabs:
+  - {fileID: 1012286602500493416, guid: e72d4834f3827c24987c3139f6221674, type: 3}
+  - {fileID: 5637172736698284755, guid: 805e5981c4df4ed41a3b229727184f91, type: 3}
+  - {fileID: 1234513188667531, guid: 9fb250b8be6a14b4f95e0f0656359166, type: 3}

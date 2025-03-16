@@ -1,73 +1,63 @@
 using UnityEngine;
 using UnityEngine.UI;
+using Zenject;
 
 public class Bootstrap : MonoBehaviour
 {
-    [SerializeField] private GameObject _buttonsParent;
-    private PlayerControls _inputActions;
-    private ButtonsService _buttonsService;
-    private ButtonsService _houseButton;
-    private ButtonsService _farmButton;
-    private ButtonsService _towerButton;
-    private BuildingsGrid _buildingsGrid;
-    private Building _tower;
-    private Building _house;
-    private Building _farm;
+    [Inject] private PlayerControls _inputActions;
+    [Inject] private ButtonsService _buttonsService;
+    [Inject] private BuildingsGrid _buildingsGrid;
+    [Inject] private PlaceButton _placeButton;
+    [Inject] private DeleteButton _deleteButton;
+    [Inject] private BuildingPool _buildingPool;
+    [Inject] private GridManager _gridManager;
+    [Inject] private GameConfig _gameConfig;
+    [Inject(Id = "ButtonsParent")] private GameObject _buttonsParent;
+    [Inject] private Canvas _canvas;
 
-    private void Awake()
-    {
-        _inputActions = new PlayerControls();
-    }
-    
     private void Start()
     {
-        CreateGrid();
-        CreateButtonsService();
-        CreateBuilding();
+        Initialize();
+    }
+
+    private void Initialize()
+    {
+        _buildingPool.PrewarmPool(_gameConfig.BuildingData, _gameConfig.PoolSize);
+        
+        _buildingsGrid.SetSize(_gameConfig.GridSize.x, _gameConfig.GridSize.y);
+        
         CreateButtons();
-    }
-
-    private void CreateButtonsService()
-    {
-        _buttonsService = Resources.Load<ButtonsService>("ButtonsService");
-        Instantiate(_buttonsService).Setup(_inputActions);
-    }
-
-    private void CreateBuilding()
-    {
-        _tower = Resources.Load<Building>("Tower");
-        _house = Resources.Load<Building>("House");
-        _farm = Resources.Load<Building>("Farm");
+        
+        CreatePlaceButton();
+        CreateDeleteButton();
     }
 
     private void CreateButtons()
     {
-        _houseButton = Resources.Load<ButtonsService>("Button House");
-        Instantiate(_houseButton, _buttonsParent.transform);
-        
-        //не привязывается действие
-        _houseButton.GetComponent<Button>().onClick.AddListener(() =>
-            _buildingsGrid.StartPlacingBuilding(_house));
-        
-        _farmButton = Resources.Load<ButtonsService>("Button Farm");
-        Instantiate(_farmButton, _buttonsParent.transform);
-        
-        _farmButton.GetComponent<Button>().onClick.AddListener(() =>
-            _buildingsGrid.StartPlacingBuilding(_farm));
-        
-        _towerButton = Resources.Load<ButtonsService>("Button Tower");
-        Instantiate(_towerButton, _buttonsParent.transform);
-        
-        _towerButton.GetComponent<Button>().onClick.AddListener(() =>
-            _buildingsGrid.StartPlacingBuilding(_tower));
+        foreach (var buildingData in _gameConfig.BuildingData)
+        {
+            var buttonInstance = Instantiate(Resources.Load<Button>("Button " + buildingData.BuildingName),
+                _buttonsParent.transform);
+            buttonInstance.onClick.AddListener(() =>
+            {
+                _buildingsGrid.StartPlacingBuilding(buildingData);
+                _buttonsService.Place();
+            });
+        }
     }
 
-    private void CreateGrid()
+    private void CreatePlaceButton()
     {
-        _buildingsGrid = Resources.Load<BuildingsGrid>("BuildingGrid");
-        Instantiate(_buildingsGrid).Setup(_inputActions);
+        _placeButton.transform.SetParent(_canvas.transform, false);
+        _placeButton.GetComponent<Button>().onClick.AddListener(() => _buttonsService.Place());
     }
-    
+
+    private void CreateDeleteButton()
+    {
+        _deleteButton.transform.SetParent(_canvas.transform, false);
+        _deleteButton.GetComponent<Button>().onClick.AddListener(() => _buttonsService.Delete());
+    }
+
     private void OnDisable()
     {
         _inputActions.Disable();

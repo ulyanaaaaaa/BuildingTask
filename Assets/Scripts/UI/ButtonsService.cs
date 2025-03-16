@@ -1,32 +1,29 @@
 using UnityEngine;
+using Zenject;
 
 public class ButtonsService : MonoBehaviour
 {
-    private PlayerControls inputActions;
+    [Inject] private PlayerControls _inputActions;
 
-    public void Setup(PlayerControls controls)
+    private void Start()
     {
-        inputActions = controls;
-        StartButtons();
-    }
-
-    private void StartButtons()
-    {
-        inputActions.PlaceBuilding.Enable();
-        inputActions.DeleteBuilding.Disable();
+        _inputActions.PlaceBuilding.Enable();
+        _inputActions.DeleteBuilding.Disable();
     }
     
-    public void Remove()
+    public void Delete()
     {
-        //привязать
-        inputActions.PlaceBuilding.Disable();
-        inputActions.DeleteBuilding.Enable();
-        Debug.Log(inputActions);
+        if (_inputActions == null) return;
+
+        _inputActions.PlaceBuilding.Disable();
+        _inputActions.DeleteBuilding.Enable();
     }
 
     public void Place()
     {
-        inputActions.PlaceBuilding.Enable();
-        inputActions.DeleteBuilding.Disable();
+        if (_inputActions == null) return;
+
+        _inputActions.PlaceBuilding.Enable();
+        _inputActions.DeleteBuilding.Disable();
     }
 }

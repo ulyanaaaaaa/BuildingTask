@@ -1,4 +1,8 @@
-public class FarmButton : ButtonsService
+using UnityEngine;
+using UnityEngine.UI;
+
+[RequireComponent(typeof(Button))]
+public class FarmButton : MonoBehaviour
 {
     
 }

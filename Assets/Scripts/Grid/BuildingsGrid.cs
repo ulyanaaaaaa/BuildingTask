@@ -1,31 +1,41 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using UnityEngine.InputSystem;
+using Zenject;
 
-public class BuildingsGrid : MonoBehaviour
+public class BuildingsGrid : MonoBehaviour, ISaveable
 {
-    public Vector2Int GridSize = new Vector2Int(10, 10);
-    public Building buildingPrefab;
-
-    private Building[,] grid;
-    private Building flyingBuilding;
-    private Camera mainCamera;
-    private PlayerControls inputActions;
-
-    public void Setup(PlayerControls input)
+    private int _sizeX;
+    private int _sizeY;
+    private BuildingData _flyingBuildingData; 
+    private Building _flyingBuildingInstance;
+    private Camera _mainCamera;
+    [Inject] private BuildingData[] _buildingData;
+    [Inject] private BuildingPool _buildingPool;
+    [Inject] private GridManager _gridManager; 
+    [Inject] private PlayerControls _inputActions; 
+    
+    public void SetSize(int gridSizeX, int gridSizeY)
     {
-        inputActions = input;
+        _sizeX = gridSizeX;
+        _sizeY = gridSizeY;
     }
 
     private void Start()
     {
-        grid = new Building[GridSize.x, GridSize.y];
-        mainCamera = Camera.main;
-        inputActions.DeleteBuilding.Delete.performed += _ => TryRemoveBuilding();
+        _mainCamera = Camera.main;
+        _inputActions.DeleteBuilding.Delete.performed += _ => TryRemoveBuilding();
+        
+        var data = SaveSystem.Load();
+        if (data != null)
+        {
+            Load(data);
+        }
     }
 
     private void Update()
     {
-        if (flyingBuilding)
+        if (_flyingBuildingInstance != null)
         {
             UpdateFlyingBuildingPosition();
         }
@@ -34,23 +44,21 @@ public class BuildingsGrid : MonoBehaviour
     private void UpdateFlyingBuildingPosition()
     {
         var groundPlane = new Plane(Vector3.up, Vector3.zero);
-        Ray ray = mainCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
+        Ray ray = _mainCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
 
         if (groundPlane.Raycast(ray, out float position))
         {
             Vector3 worldPosition = ray.GetPoint(position);
             int x = Mathf.RoundToInt(worldPosition.x);
             int y = Mathf.RoundToInt(worldPosition.z);
-
-            bool available = true;
-
-            if (x < 0 || x > GridSize.x - flyingBuilding.Size.x) available = false;
-            if (y < 0 || y > GridSize.y - flyingBuilding.Size.y) available = false;
-
-            if (available && IsPlaceTaken(x, y)) available = false;
-
-            flyingBuilding.transform.position = new Vector3(x, 0, y);
-            flyingBuilding.SetTransparent(available);
+            
+            bool available = x >= 0 && x <= _sizeX - _flyingBuildingData.SizeX && 
+                             y >= 0 && y <= _sizeY - _flyingBuildingData.SizeY && 
+                             !_gridManager.IsPlaceTaken(new Vector2Int(x, y),
+                                 new Vector2Int(_flyingBuildingData.SizeX, _flyingBuildingData.SizeY));
+            
+            _flyingBuildingInstance.transform.position = new Vector3(x, 0, y);
+            _flyingBuildingInstance.SetTransparent(available);
 
             if (available && Mouse.current.leftButton.wasPressedThisFrame)
             {
@@ -59,83 +67,64 @@ public class BuildingsGrid : MonoBehaviour
         }
     }
 
-    private bool IsPlaceTaken(int placeX, int placeY)
-    {
-        for (int x = 0; x < flyingBuilding.Size.x; x++)
-        {
-            for (int y = 0; y < flyingBuilding.Size.y; y++)
-            {
-                if (grid[placeX + x, placeY + y] != null) return true;
-            }
-        }
-        return false;
-    }
-
     private void PlaceFlyingBuilding(int placeX, int placeY)
     {
-        for (int x = 0; x < flyingBuilding.Size.x; x++)
+        Vector2Int position = new Vector2Int(placeX, placeY);
+        Vector2Int size = new Vector2Int(_flyingBuildingData.SizeX, _flyingBuildingData.SizeY);
+
+        if (_gridManager.IsPlaceTaken(position, size))
         {
-            for (int y = 0; y < flyingBuilding.Size.y; y++)
-            {
-                grid[placeX + x, placeY + y] = flyingBuilding;
-            }
+            return;
         }
 
-        flyingBuilding.SetNormal();
-        flyingBuilding = null;
+        _gridManager.AddBuilding(_flyingBuildingInstance, position, size);
+        _flyingBuildingInstance.SetNormal();
+        _flyingBuildingInstance = null;
+        _flyingBuildingData = null;
     }
 
-    public void StartPlacingBuilding(Building buildingPrefab)
+    private void TryRemoveBuilding()
     {
-        if (flyingBuilding != null)
-        {
-            Destroy(flyingBuilding.gameObject);
-        }
-        
-        flyingBuilding = Instantiate(buildingPrefab);
-    }
-
-    private void CancelBuilding()
-    {
-        if (flyingBuilding != null)
-        {
-            Destroy(flyingBuilding.gameObject);
-            flyingBuilding = null;
-        }
-    }
-
-    public void TryRemoveBuilding()
-    {
-        Ray ray = mainCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
+        Ray ray = _mainCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
         if (Physics.Raycast(ray, out RaycastHit hit))
         {
             Building buildingToRemove = hit.transform.GetComponent<Building>();
             if (buildingToRemove != null)
             {
-                RemoveBuilding(buildingToRemove);
+                Vector2Int position = new Vector2Int(
+                    Mathf.RoundToInt(buildingToRemove.transform.position.x),
+                    Mathf.RoundToInt(buildingToRemove.transform.position.z)
+                );
+                _gridManager.RemoveBuilding(buildingToRemove, position, buildingToRemove.Size);
             }
         }
     }
 
-    private void RemoveBuilding(Building building)
+    public void StartPlacingBuilding(BuildingData data)
     {
-        for (int x = 0; x < building.Size.x; x++)
+        if (_flyingBuildingInstance != null)
         {
-            for (int y = 0; y < building.Size.y; y++)
-            {
-                for (int gridX = 0; gridX < GridSize.x; gridX++)
-                {
-                    for (int gridY = 0; gridY < GridSize.y; gridY++)
-                    {
-                        if (grid[gridX, gridY] == building)
-                        {
-                            grid[gridX, gridY] = null;
-                        }
-                    }
-                }
-            }
+            _buildingPool.ReturnBuilding(_flyingBuildingInstance);
         }
 
-        Destroy(building.gameObject);
+        _flyingBuildingData = data; 
+        _flyingBuildingInstance = _buildingPool.GetBuilding(data); 
+        _flyingBuildingInstance.Size = new Vector2Int(data.SizeX, data.SizeY); 
+        _flyingBuildingInstance.BuildingData = data; 
+    }
+
+    public void Save(GridSaveData data)
+    {
+        _gridManager.Save(data);
+    }
+
+    public void Load(GridSaveData data)
+    {
+        _gridManager.Load(data, _buildingData);
+    }
+
+    private void OnApplicationQuit()
+    {
+        SaveSystem.Save(this);
     }
 }
