@@ -36,7 +36,7 @@ public class Bootstrap : MonoBehaviour
     {
         foreach (var buildingData in _gameConfig.BuildingData)
         {
-            var buttonInstance = Instantiate(Resources.Load<Button>("Button " + buildingData.BuildingName),
+            var buttonInstance = Instantiate(Resources.Load<Button>(AssetsPath.Button + buildingData.BuildingName),
                 _buttonsParent.transform);
             buttonInstance.onClick.AddListener(() =>
             {
